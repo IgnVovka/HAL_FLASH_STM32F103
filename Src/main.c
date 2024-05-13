@@ -19,6 +19,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -91,7 +92,11 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-
+  readFlash(flashADDR);
+  test_struct.var1=1;//№настройки
+  test_struct.var2=20;//значение настройки
+  test_struct.var3=2;//размер настройки
+  //uint8_t stat=writeFlash(flashADDR);//инициализация функции записи во flash
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -104,13 +109,24 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART1_UART_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-  test_struct.var1=1;//№настройки
-  test_struct.var2=20;//значение настройки
-  test_struct.var3=2;//размер настройки
-
-  uint8_t stat=writeFlash(flashADDR);//инициализация функции записи во flash
-
+  HAL_TIM_Base_Start_IT(&htim3); // запуск таймера в режиме прерываний
+  int i=0;
+  while(i<=2)
+  {
+      writeFlash(flashADDR);
+      i++;
+  }
+  /*HAL_FLASH_Unlock();                           //разблокировка flash 
+  FLASH_EraseInitTypeDef str;                       //переменная для настроек стирания
+  uint32_t pageError=0;
+  str.TypeErase = FLASH_TYPEERASE_PAGES;          // стирать постранично(1кбайт)
+  str.PageAddress = flashADDR;                   // адрес страницы для стирания
+  str.NbPages = 1;                              //1 страницу стираем
+  if(HAL_FLASHEx_Erase(&str,&pageError)==HAL_OK)
+      printf("Clear str\n");
+  HAL_FLASH_Lock();*/
   uint8_t *ptr;//указатель для хранения адреса
   /* USER CODE END 2 */
 
@@ -173,14 +189,15 @@ uint8_t writeFlash (uint32_t addr)
 	HAL_StatusTypeDef status;
 	uint32_t structureSize = sizeof(test_struct);          // замеряем размер структуры
 	FLASH_EraseInitTypeDef FlashErase;                     // переменная для структуры, которая выполняет функцию стирания страницы
-	uint32_t pageError = 0;                                // переменная для записи информации об ошибках в процессе стирания
+	uint32_t Error = 0;                                // переменная для записи информации об ошибках в процессе стирания
 
 	//__disable_irq();                                       // запрещаем прерывания
-	HAL_FLASH_Unlock();										//разблокировка FLASH
+	HAL_FLASH_Unlock();									     //разблокировка FLASH
+    /*определил параметр для стирания*/
 	FlashErase.TypeErase = FLASH_TYPEERASE_PAGES;          // стирать постранично(1кбайт)
 	FlashErase.PageAddress = addr;                         // адрес страницы для стирания
 	FlashErase.NbPages = structureSize / 1024 + 1;         // считаем количество страниц, чтобы наш массив поместился
-	if (HAL_FLASHEx_Erase(&FlashErase, &pageError) != HAL_OK)   // вызов функции стирания
+	if (HAL_FLASHEx_Erase(&FlashErase, &Error) != HAL_OK)   // вызов функции стирания
 	{
 		HAL_FLASH_Lock();                                  // если не смог стереть, то закрыть память и вернуть ошибку
 		return HAL_ERROR;
